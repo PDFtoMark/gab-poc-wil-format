@@ -1,0 +1,37 @@
+name: wil-format-sandbox-poc
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  pull-requests: write
+jobs:
+  format-code:
+    if: >
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '!run-clang-format') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      has-changes: ${{ steps.format.outputs.has-changes }}
+    steps:
+      - name: Checkout base repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch PR branch
+        run: |
+          git fetch origin pull/${{ github.event.issue.number }}/head:pr-head
+          git checkout pr-head
+      - name: Run formatter (PR-controlled script)
+        id: format
+        env:
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          ./scripts/format-changes.sh
+          echo "has-changes=false" >> "$GITHUB_OUTPUT"
